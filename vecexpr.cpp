@@ -176,6 +176,19 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         continue;
       }
 
+      if ( funct[0] == '&' ) { // FUNCTION: pop to integer variable
+        const char *varName = &funct[1];
+        Tcl_Obj * newList = Tcl_NewListObj (0, NULL);
+        for (int i = 0; i < count_back; i++) { 
+          double const val = stack.back()[i];
+          long int floor = val < 0 ? (long int)val - 1 : (long int)val;
+          Tcl_ListObjAppendElement (interp, newList, Tcl_NewIntObj(floor));
+        }
+        Tcl_SetVar2Ex (interp, varName, NULL, newList, 0);
+        stack.pop_back();
+        continue;
+      }
+
       if (!strcmp(funct, "abs")) { // FUNCTION: ABS
         for (int i = 0; i < count_back; i++) { 
           stack.back()[i] = fabs(stack.back()[i]);

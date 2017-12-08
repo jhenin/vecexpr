@@ -12,8 +12,11 @@ Uses reverse Polish syntax (operands followed by operators).
 Uses a FIFO stack, plus an extra register (used via store and recall)
 Arguments: vectors, scalars, and builtin operators.
 
-Example:
+Examples:
+
 `vecexpr "1 2 3" "4 5 6" add`
+
+`vecexpr "1.2 -2.3 3.2" &int; puts $int` (prints `1 -3 3`)
 
 ## Operators
 
@@ -21,7 +24,7 @@ Example:
 `pi` (constant), `height` (current stack height, for debugging), `<varName` (push Tcl var - can be done with $var as well), `recall` (after calling store)
 
 ### unary
-`abs` `cos` `sin` `exp` `floor` `log` `mean` `min` `max` `pow` `pi` `sq` `sqrt` `sum` `>varName` (pop into Tcl var), `store` (`recall` is 0-ary); `dup` (duplicate in the stack), `pop`
+`abs` `cos` `sin` `exp` `floor` `log` `mean` `min` `max` `pow` `pi` `sq` `sqrt` `sum` `>varName` (pop into Tcl var), `#varName` (push floor values to an int variable), `store` (`recall` is 0-ary) `dup` (duplicate in the stack), `pop`
 
 ### binary
 `add` `sub` `mult` `dot` `div` `concat` `swap`
