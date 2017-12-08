@@ -1,40 +1,43 @@
-/* A simple-minded, vector-based pocket calculator for Tcl.
- * Uses a kind of reverse Polish notation.
- * The "stack" holds only two items, but there is a custom register accessed via "store" and "recall"
- * Arguments: vectors, scalars, functions
- * Note: first data item must be a vector and sets the vector size for this instance of vecexpr
- *
- * Available functions:
- * Unary: abs cos sin floor log mean pow pi sq sqrt sum; store, recall; dup (duplicate in the stack)
- * Binary: add sub mult dot div(*)
- * (*) all binary functions except dot accept mixed scalar/vector operands
- *
- * Example usage:
- * load vecexpr.so
- * set a {1 2 3 4}
- * set scalar [vecexpr $a sqrt 2.0 mult store { 1 2 1 2 } dot recall sub mean] 
- * 
- * Jerome Henin <jhenin@cmm.upenn.edu>, 2008-2009 */
-
 #include <tcl.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+#include <vector>
 
 extern "C" {
 int Vecexpr_Init(Tcl_Interp *interp);
 }
 static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const objv[]);
 
-static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const objv[]) {
+// A simple-minded, vector-based pocket calculator for Tcl.
+// There is a FIFO stack, plus an extra register (used via store and recall)
+// Arguments: vectors, scalars, builtin function names
 
+// TODO: norm (normalize), asin acos atan, cross (3-vectors)
+
+// Available functions:
+// nullary: pi (constant), height (current stack height, for debugging), <varName (push Tcl var - can be done with $var as well)
+// recall (after calling store)
+// Unary: abs cos sin exp floor log mean min max pow pi sq sqrt sum >varName (pop into Tcl var)
+// also unary: store (recall is 0-ary); dup (duplicate in the stack), pop
+// Binary: add sub mult dot div concat swap (*)
+// (*) all binary functions except dot accept mixed scalar/vector operands
+// vector lengths must match except for concat and swap
+
+// Matrix multiplication: matrices are stored unrolled (by lines)
+// the common dimension is pushed on the stack last:
+// vecexpr "1 0 0 1" "1 2" 2 matmult   gives  "1.0 2.0"
+// vecexpr "1 0 0 1" "1 2" 1 matmult   gives  "1.0 2.0 0.0 0.0 0.0 0.0 1.0 2.0"
+
+static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const objv[])
+{
   if (argc < 2) {
     Tcl_WrongNumArgs(interp, 1, objv, (char *)"data data/funct ?data/funct? ...");
     return TCL_ERROR;
   }
 
   // all vectors have same size
-  int vecsize = 0;
+  // int vecsize = 0;
 
   int     funct_length;
   char *  funct;
@@ -43,347 +46,468 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
   int       num;
   double    scalar;
   bool      is_data;
+  size_t    count_back;
+  size_t    count_prev;
+  bool      mismatched;     // are two different-length vectors on top of the stack?
 
-  // simple two-item stack
-  double *  stack[2] = {NULL, NULL};
-  bool      stack_is_vect[2]; // says which items are vectors
-  int       sp = 0;           // stack pointer (0 or 1)
-  int       sh = 0;           // stack height (0, 1 or 2)
-  int nv; // number of vectors on stack
+  std::vector<std::vector <double> > stack;
+  int nv; // number of vectors among top two items of stack
 
   // additional register
-  double *  reg = NULL;
-  bool      reg_is_set = false;
-  bool      reg_is_vect;
+  std::vector <double> reg;
 
   for (int a = 1; a < argc; a++) {
 
     if (Tcl_ListObjGetElements(interp, objv[a], &num, &data) != TCL_OK) {
       Tcl_SetResult(interp, (char *) "vecexpr: error parsing arguments", TCL_STATIC);
-      if (stack[0]) { delete [] stack[0]; delete [] stack[1]; delete [] reg;}
       return TCL_ERROR;
     }
 
     if ( !num ) {
-      Tcl_SetResult(interp, (char *) "vecexpr: empty list is not a valid argument", TCL_STATIC);
-      if (stack[0]) { delete [] stack[0]; delete [] stack[1]; delete [] reg;}
+      Tcl_SetResult(interp, (char *) "vecexpr: empty list passed as argument", TCL_STATIC);
       return TCL_ERROR;
     }
 
     is_data = (Tcl_GetDoubleFromObj(interp, data[0], &scalar) == TCL_OK);
     
     if ( is_data ) {
-      if ( !vecsize ) {
-        vecsize = num;
-        stack[0] = new double[vecsize];
-        stack[1] = new double[vecsize];
-        reg      = new double[vecsize];
-      }
-
-      if ( sh < 2 ) sh++;
-      // if (sh == 2), we could display a warning that we're overwriting data... 
-      sp = 1 - sp;
-
-      if ( num == 1 ) {
-        // scalar; just push
-        stack_is_vect[sp] = false;
-        stack[sp][0] = scalar;
-
-      } else {
-        if ( num != vecsize ) {
-          Tcl_SetResult(interp, (char *) "vecexpr: vector argument has non-matching size", TCL_STATIC);
-          if (stack[0]) { delete [] stack[0]; delete [] stack[1]; delete [] reg;}
+      // parse list and push
+      stack.push_back (std::vector <double>());
+      stack.back().resize (num);
+      stack.back()[0] = scalar;
+      for  (int i = 1; i < num; i++) {
+        if (Tcl_GetDoubleFromObj(interp, data[i], &scalar) != TCL_OK) {
+          Tcl_SetResult(interp, (char *) "vecexpr: error parsing vector element as floating-point", TCL_STATIC);
           return TCL_ERROR;
         }
-        // parse list and push
-        stack_is_vect[sp] = true;
-        stack[sp][0] = scalar;
-        for  (int i = 1; i < vecsize; i++) {
-          if (Tcl_GetDoubleFromObj(interp, data[i], stack[sp]+i) != TCL_OK) {
-            Tcl_SetResult(interp, (char *) "vecexpr: error parsing vector element as double", TCL_STATIC);
-            if (stack[0]) { delete [] stack[0]; delete [] stack[1]; delete [] reg;}
-            return TCL_ERROR;
-          }
-        }
+        stack.back()[i] = scalar;
       }
     } else {
       // functions
       
       if (num != 1) {
         Tcl_SetResult(interp, (char *) "vecexpr: error parsing list with more than one element as function", TCL_STATIC);
-        if (stack[0]) { delete [] stack[0]; delete [] stack[1]; delete [] reg;}
         return TCL_ERROR;
       }
-      if (sh == 0) {
+      funct = Tcl_GetStringFromObj(data[0], &funct_length);
+      if ( !funct_length ) {
+        Tcl_SetResult(interp, (char *) "vecexpr: found empty string when trying to parse function name (should not happen!)", TCL_STATIC);
+        return TCL_ERROR;
+      }
+
+      // Zero-ary function first
+
+      if (!strcmp(funct, "pi")) { // FUNCTION: PI
+        stack.push_back(std::vector<double> (1, M_PI));
+        continue;
+      }
+
+      if (!strcmp(funct, "height")) { // FUNCTION: HEIGHT
+        //return stack height
+        stack.push_back(std::vector<double> (1, (double) stack.size()));
+        continue;
+      }
+
+      if (!strcmp(funct, "recall")) { // FUNCTION: RECALL
+        if ( reg.size() == 0 ) {
+          Tcl_SetResult(interp, (char *) "vecexpr: trying to recall value from empty register", TCL_STATIC);
+          return TCL_ERROR;
+        }
+        stack.push_back( std::vector<double> (reg) );
+        continue;
+      }
+
+      if ( funct[0] == '<' ) { // FUNCTION: PUSH VARIABLE
+      // This does not seem very useful, as the variable can be passed as
+      // a parameter to vecexpr slightly more efficiently than using this code
+      // 1000-buck question: why is {expr  1 + 2} slower than { vecexpr 1 2 add }, but
+      // { expr {$a + $b} } much faster than either { vecexpr $a $b add } or
+      // { vecexpr <a <b add } ???
+      // (the answer might lie in the code used internally to parse expr:
+      // http://tcl.cvs.sourceforge.net/viewvc/tcl/tcl/generic/tclCompExpr.c?view=markup )
+      
+        const char *varName = &funct[1];
+        Tcl_Obj *varData = Tcl_GetVar2Ex( interp, varName, NULL, 0);
+        if ( varData == NULL ) {
+          Tcl_SetResult(interp, (char *) "vecexpr: tried to push unknown Tcl variable", TCL_STATIC);
+          return TCL_ERROR;
+        }
+        int num_elts;
+        Tcl_Obj ** listData;
+        if (Tcl_ListObjGetElements(interp, varData, &num_elts, &listData) != TCL_OK) {
+          Tcl_SetResult(interp, (char *) "vecexpr: error parsing arguments", TCL_STATIC);
+          return TCL_ERROR;
+        }
+
+        if ( !num_elts ) {
+          Tcl_SetResult(interp, (char *) "vecexpr: empty list passed as argument", TCL_STATIC);
+          return TCL_ERROR;
+        }
+
+        stack.push_back (std::vector <double>());
+        stack.back().resize (num_elts);
+        for  (int i = 0; i < num_elts; i++) {
+          if (Tcl_GetDoubleFromObj(interp, listData[i], &scalar) != TCL_OK) {
+            Tcl_SetResult(interp, (char *) "vecexpr: error parsing vector element as floating-point", TCL_STATIC);
+            return TCL_ERROR;
+          }
+          stack.back()[i] = scalar;
+        }
+        continue;
+      }
+
+      if (stack.size() == 0) {
         Tcl_SetResult(interp, (char *) "vecexpr: calling function with empty stack", TCL_STATIC);
-        if (stack[0]) { delete [] stack[0]; delete [] stack[1]; delete [] reg;}
         return TCL_ERROR;
       }
       
-      funct = Tcl_GetStringFromObj(data[0], &funct_length);
-      int not_sp = 1 - sp; //second operand
+      count_back = stack.back().size();
 
-      // Unary functions first
+      // Unary functions
+     
+      if ( funct[0] == '>' ) { // FUNCTION: POP TO VARIABLE
+        const char *varName = &funct[1];
+        Tcl_Obj * newList = Tcl_NewListObj (0, NULL);
+        for (int i = 0; i < count_back; i++) { 
+          Tcl_ListObjAppendElement (interp, newList, Tcl_NewDoubleObj(stack.back()[i]));
+        }
+        Tcl_SetVar2Ex (interp, varName, NULL, newList, 0);
+        stack.pop_back();
+        continue;
+      }
+
       if (!strcmp(funct, "abs")) { // FUNCTION: ABS
-        int count = stack_is_vect[sp] ? vecsize : 1;
-        for (int i = 0; i < count; i++) { 
-          stack[sp][i] = fabs(stack[sp][i]);
+        for (int i = 0; i < count_back; i++) { 
+          stack.back()[i] = fabs(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "cos")) { // FUNCTION: COS
-        int count = stack_is_vect[sp] ? vecsize : 1;
-        for (int i = 0; i < count; i++) { 
-          stack[sp][i] = cos(stack[sp][i]);
+        for (int i = 0; i < count_back; i++) { 
+          stack.back()[i] = cos(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "sin")) { // FUNCTION: SIN
-        int count = stack_is_vect[sp] ? vecsize : 1;
-        for (int i = 0; i < count; i++) { 
-          stack[sp][i] = sin(stack[sp][i]);
+        for (int i = 0; i < count_back; i++) { 
+          stack.back()[i] = sin(stack.back()[i]);
+        }
+        continue;
+      }
+
+      if (!strcmp(funct, "exp")) { // FUNCTION: EXP
+        for (int i = 0; i < count_back; i++) { 
+          stack.back()[i] = exp(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "log")) { // FUNCTION: LOG
-        int count = stack_is_vect[sp] ? vecsize : 1;
-        for (int i = 0; i < count; i++) { 
-          if (stack[sp][i] < 0) {
-            Tcl_SetResult(interp, (char *) "vecexpr: taking log of negative value", TCL_STATIC);
-            if (stack[0]) { delete [] stack[0]; delete [] stack[1]; delete [] reg;}
+        for (int i = 0; i < count_back; i++) { 
+          if (stack.back()[i] <= 0.0) {
+            Tcl_SetResult(interp, (char *) "vecexpr: taking log of non-positive value", TCL_STATIC);
             return TCL_ERROR;
           }
-          stack[sp][i] = log(stack[sp][i]);
+          stack.back()[i] = log(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "mean")) { // FUNCTION: MEAN
-        if ( !stack_is_vect[sp] ) continue;
-        for (int i = 1; i < vecsize; i++) { 
-          stack[sp][0] += stack[sp][i];
+        for (int i = 1; i < count_back; i++) { 
+          stack.back()[0] += stack.back()[i];
         }
-        stack[sp][0] /= vecsize;
-        stack_is_vect[sp] = false;
+        stack.back()[0] /= double (count_back);
+        stack.back().resize(1);
+        continue;
+      }
+
+      if (!strcmp(funct, "min")) { // FUNCTION: MIN
+        for (int i = 1; i < count_back; i++) { 
+          if (stack.back()[i] < stack.back()[0])
+            stack.back()[0] = stack.back()[i];
+        }
+        stack.back().resize(1);
+        continue;
+      }
+
+      if (!strcmp(funct, "max")) { // FUNCTION: MAX
+        for (int i = 1; i < count_back; i++) { 
+          if (stack.back()[i] > stack.back()[0])
+            stack.back()[0] = stack.back()[i];
+        }
+        stack.back().resize(1);
         continue;
       }
 
       if (!strcmp(funct, "sum")) { // FUNCTION: SUM
-        if ( !stack_is_vect[sp] ) continue;
-        for (int i = 1; i < vecsize; i++) { 
-          stack[sp][0] += stack[sp][i];
+        for (int i = 1; i < count_back; i++) { 
+          stack.back()[0] += stack.back()[i];
         }
-        stack_is_vect[sp] = false;
+        stack.back().resize(1);
         continue;
       }
 
       if (!strcmp(funct, "floor")) { // FUNCTION: FLOOR
-        int count = stack_is_vect[sp] ? vecsize : 1;
-        for (int i = 0; i < count; i++) { 
-          stack[sp][i] = floor(stack[sp][i]);
+        for (int i = 0; i < count_back; i++) { 
+          stack.back()[i] = floor(stack.back()[i]);
         }
         continue;
       }
 
-      if (!strcmp(funct, "pi")) { // FUNCTION: PI
-        if (sh < 2) sh++;
-        sp = 1 - sp;
-        stack[sp][0] = M_PI;
-        stack_is_vect[sp] = false; 
-        continue;
-      }
-
       if (!strcmp(funct, "sq")) { // FUNCTION: SQ
-        int count = stack_is_vect[sp] ? vecsize : 1;
-        for (int i = 0; i < count; i++) { 
-          stack[sp][i] *= stack[sp][i];
+        for (int i = 0; i < count_back; i++) { 
+          stack.back()[i] *= stack.back()[i];
         }
         continue;
       }
 
       if (!strcmp(funct, "sqrt")) { // FUNCTION: SQRT
-        int count = stack_is_vect[sp] ? vecsize : 1;
-        for (int i = 0; i < count; i++) { 
-          if (stack[sp][i] < 0) {
+        for (int i = 0; i < count_back; i++) { 
+          if (stack.back()[i] < 0.0) {
             Tcl_SetResult(interp, (char *) "vecexpr: taking sqrt of negative value", TCL_STATIC);
-            if (stack[0]) { delete [] stack[0]; delete [] stack[1]; delete [] reg;}
             return TCL_ERROR;
           }
-          stack[sp][i] = sqrt(stack[sp][i]);
+          stack.back()[i] = sqrt(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "dup")) { // FUNCTION: DUP
-        sh = 2;
-        stack_is_vect[not_sp] = stack_is_vect[sp];
-        int count = stack_is_vect[sp] ? vecsize : 1;
-        for (int i = 0; i < count; i++) { 
-          stack[not_sp][i] = stack[sp][i];
-        }
+        stack.push_back( std::vector<double> (stack.back()) );
+        continue;
+      }
+
+      if (!strcmp(funct, "pop")) { // FUNCTION: POP
+        stack.pop_back();
         continue;
       }
 
       if (!strcmp(funct, "store")) { // FUNCTION: STORE
-        reg_is_set = true;
-        reg_is_vect = stack_is_vect[sp];
-        int count = stack_is_vect[sp] ? vecsize : 1;
-        for (int i = 0; i < count; i++) { 
-          reg[i] = stack[sp][i];
-        }
+        reg = stack.back();
         continue;
       }
 
-      if (!strcmp(funct, "recall")) { // FUNCTION: RECALL
-        if ( !reg_is_set ) {
-          Tcl_SetResult(interp, (char *) "vecexpr: trying to recall value from empty register", TCL_STATIC);
-          if (stack[0]) { delete [] stack[0]; delete [] stack[1]; delete [] reg;}
-          return TCL_ERROR;
-        }
-        if (sh < 2) sh++;
-        sp = 1 - sp;
-        stack_is_vect[sp] = reg_is_vect;
-        int count = reg_is_vect ? vecsize : 1;
-        for (int i = 0; i < count; i++) { 
-          stack[sp][i] = reg[i];
-        }
-        continue;
-      }
       // ########## End of unary functions
 
-      if (sh != 2) {
-        Tcl_SetResult(interp, (char *) "vecexpr: not a unary function, and only one item on stack", TCL_STATIC);
-        if (stack[0]) { delete [] stack[0]; delete [] stack[1]; delete [] reg;}
+      if (stack.size() < 2) {
+        Tcl_SetResult(interp, (char *)  "vecexpr: not a unary function, and only one item on stack", TCL_STATIC);
         return TCL_ERROR;
       }
 
+      int prev = stack.size()-2; // second-to-last on stack
+      count_prev = stack[prev].size();
+      mismatched = (count_back != count_prev);
+
+      if (!strcmp(funct, "concat")) { // FUNCTION: CONCAT
+        stack[prev].reserve(count_prev + count_back);
+        for (int i = 0; i < count_back; i++) {
+          stack[prev].push_back (stack.back()[i]);
+        }
+        stack.pop_back();
+        continue;
+      }
+
+      if (!strcmp(funct, "swap")) { // FUNCTION: SWAP
+        stack.back().swap(stack[prev]);
+        continue;
+      }
+
       if (!strcmp(funct, "add")) { // FUNCTION: ADD
-        sh = 1;
-        nv = stack_is_vect[0] + stack_is_vect[1];
-        if (nv == 1) {
-          // increment vector "in place"; stack has only 1 item left anyway
-          sp = stack_is_vect[0] ? 0 : 1;
-          scalar = stack[1-sp][0];
-          for (int i = 0; i < vecsize; i++) { 
-            stack[sp][i] += scalar;
+        if ( count_back == 1 || count_prev == 1 ) {
+          if (count_back > 1) {
+            stack.back().swap(stack[prev]);
+            count_prev = count_back;
+          }
+          for (int i = 0; i < count_prev; i++) { 
+            stack[prev][i] += stack.back()[0];
           }
         } else {
-          int count = nv ? vecsize : 1;
-          for (int i = 0; i < count; i++) {
-            stack[sp][i] += stack[not_sp][i];
+          if ( mismatched ) {
+            Tcl_SetResult(interp, (char *)  "vecexpr: attempting binary function on different-length vectors", TCL_STATIC);
+            return TCL_ERROR;
+          }
+          for (int i = 0; i < count_back; i++) {
+            stack[prev][i] += stack.back()[i];
           }
         }
+        stack.pop_back();
         continue;
       } 
 
       if ( !strcmp(funct, "div") ) { // FUNCTION: DIV
-        sh = 1;
-        nv = stack_is_vect[0] + stack_is_vect[1];
         bool zero = false;
-        int count = stack_is_vect[sp] ? vecsize : 1;
-        for (int i = 0; i < count; i++) {if (stack[sp][i] == 0.0) zero = true;}
+        for (int i = 0; i < count_back; i++) {if (stack.back()[i] == 0.0) zero = true;}
         if (zero) {
           Tcl_SetResult(interp, (char *) "vecexpr: divide by zero in function div", TCL_STATIC);
-          if (stack[0]) { delete [] stack[0]; delete [] stack[1]; delete [] reg;}
           return TCL_ERROR;
         }
-        if (nv ==1) {
-          // divide vector "in place"
-          bool vec_first = stack_is_vect[not_sp];
-          sp = stack_is_vect[0] ? 0 : 1;
-          scalar = stack[1-sp][0];
-          for (int i = 0; i < vecsize; i++) { 
-            stack[sp][i] = vec_first ? stack[sp][i] / scalar : scalar / stack[sp][i];
+        if ( count_back == 1 || count_prev == 1 ) {
+          if (count_back > 1) {
+            stack.back().swap(stack[prev]);
+            count_prev = count_back;
+            for (int i = 0; i < count_prev; i++) { 
+              stack[prev][i] = stack.back()[0] / stack[prev][i];
+            }
+          } else {
+            for (int i = 0; i < count_prev; i++) { 
+              stack[prev][i] /= stack.back()[0];
+            }
           }
         } else {
-          int count = nv ? vecsize : 1;
-          for (int i = 0; i < count; i++) {
-            stack[not_sp][i] /= stack[sp][i];
+          if ( mismatched ) {
+            Tcl_SetResult(interp, (char *)  "vecexpr: attempting binary function on different-length vectors", TCL_STATIC);
+            return TCL_ERROR;
           }
-          sp = 1 - sp;
+          for (int i = 0; i < count_back; i++) {
+            stack[prev][i] /= stack.back()[i];
+          }
         }
+        stack.pop_back();
         continue;
       }
 
       if (!strcmp(funct, "dot")) { // FUNCTION: DOT
-        if (stack_is_vect[0] != stack_is_vect[1]) {
-          Tcl_SetResult(interp, (char *) "vecexpr: function dot requires two vectors or two scalars", TCL_STATIC);
-          if (stack[0]) { delete [] stack[0]; delete [] stack[1]; delete [] reg;}
+        if (mismatched) {
+          Tcl_SetResult(interp, (char *) "vecexpr: function dot requires vectors of same length", TCL_STATIC);
           return TCL_ERROR;
         }
-        sh = 1;
-        stack_is_vect[sp] = false;
         double dot = 0.0;
-        int count = stack_is_vect[0] ? vecsize : 1;
-        for (int i = 0; i < count; i++) {
-          dot += stack[sp][i] * stack[not_sp][i];
+        for (int i = 0; i < count_back; i++) {
+          dot += stack.back()[i] * stack[prev][i];
         }
-        stack[sp][0] = dot;
+        stack.pop_back();
+        stack.back().resize (1);
+        stack.back()[0] = dot;
         continue;
       } 
 
       if (!strcmp(funct, "mult")) { // FUNCTION: MULT
-        sh = 1;
-        nv = stack_is_vect[0] + stack_is_vect[1];
-        if (nv ==1) {
-          // scale vector "in place"; stack has only 1 item left anyway
-          sp = stack_is_vect[0] ? 0 : 1;
-          scalar = stack[1-sp][0];
-          for (int i = 0; i < vecsize; i++) { 
-            stack[sp][i] *= scalar;
+        if ( count_back == 1 || count_prev == 1 ) {
+          if (count_back > 1) {
+            stack.back().swap(stack[prev]);
+            count_prev = count_back;
+          }
+          for (int i = 0; i < count_prev; i++) { 
+            stack[prev][i] *= stack.back()[0];
           }
         } else {
-          int count = nv ? vecsize : 1;
-          for (int i = 0; i < count; i++) {
-            stack[sp][i] *= stack[not_sp][i];
+          if ( mismatched ) {
+            Tcl_SetResult(interp, (char *)  "vecexpr: attempting binary function on different-length vectors", TCL_STATIC);
+            return TCL_ERROR;
+          }
+          for (int i = 0; i < count_back; i++) {
+            stack[prev][i] *= stack.back()[i];
           }
         }
+        stack.pop_back();
         continue;
       } 
 
       if ( !strcmp(funct, "sub") ) { // FUNCTION: SUB
-        sh = 1;
-        nv = stack_is_vect[0] + stack_is_vect[1];
-        if (nv ==1) {
-          // increment vector "in place"; stack has only 1 item left anyway
-          bool vec_first = stack_is_vect[not_sp];
-          sp = stack_is_vect[0] ? 0 : 1;
-          scalar = stack[1-sp][0];
-          for (int i = 0; i < vecsize; i++) { 
-            stack[sp][i] = vec_first ? stack[sp][i] - scalar : scalar - stack[sp][i];
+        if ( count_back == 1 || count_prev == 1 ) {
+          if (count_back > 1) {
+            stack.back().swap(stack[prev]);
+            count_prev = count_back;
+            for (int i = 0; i < count_prev; i++) { 
+              stack[prev][i] = stack.back()[0] - stack[prev][i];
+            }
+          } else {
+            for (int i = 0; i < count_prev; i++) { 
+              stack[prev][i] -= stack.back()[0];
+            }
           }
         } else {
-          int count = nv ? vecsize : 1;
-          for (int i = 0; i < count; i++) {
-            stack[not_sp][i] -= stack[sp][i];
+          if ( mismatched ) {
+            Tcl_SetResult(interp, (char *)  "vecexpr: attempting binary function on different-length vectors", TCL_STATIC);
+            return TCL_ERROR;
           }
-          sp = 1 - sp;
+          for (int i = 0; i < count_back; i++) {
+            stack[prev][i] -= stack.back()[i];
+          }
         }
+        stack.pop_back();
+        continue;
+      }
+
+      // end of binary functions
+
+      if (stack.size() < 3) {
+        Tcl_SetResult(interp, (char *)  "vecexpr: unrecognized vector function, or too few items on stack", TCL_STATIC);
+        return TCL_ERROR;
+      }
+      
+      if ( !strcmp(funct, "matmult") ) { // FUNCTION: MATMULT
+       
+        if (stack.back().size() != 1) {
+            Tcl_SetResult (interp, (char *) "matmult: common dimension specifier should be a scalar", TCL_STATIC); 
+            return TCL_ERROR;
+        }
+        int nj1 = stack.back()[0];
+        int ni2 = nj1;
+
+        stack.pop_back();
+        std::vector<double> * mat1 = &(stack[stack.size() - 2]);
+        std::vector<double> * mat2 = &(stack.back());
+
+        if (mat1->size() % nj1 || mat2->size() % ni2) {
+            Tcl_SetResult (interp, (char *) "matmult: matrix size not a multiple of common dimension", TCL_STATIC); 
+            return TCL_ERROR;
+        }
+        int ni1 = mat1->size() / nj1;
+        int nj2 = mat2->size() / ni2;
+
+        stack.push_back (std::vector<double> (0, 0.0));
+        stack.back().resize (ni1 * nj2);
+
+        double sum;
+        int index1 = 0;
+        int index2 = 0;
+        int index = 0;
+        for (int i = 0; i < ni1; i++) {
+            for (int j = 0; j < nj2; j++) {
+                sum = 0.0;
+                index2 = j;
+                for (int k = 0; k < nj1; k++) {
+                    sum += (*mat1)[index1] * (*mat2)[index2];
+                    index1++;
+                    index2 += nj2;
+                }
+                index1 -= nj1;
+                stack.back()[index++] = sum;
+            }
+            index1 += nj1;
+        }      
+        // TODO: pop the previous matrices?
+        // stack.erase(...) may incur a peformance penalty
         continue;
       }
 
       Tcl_SetResult(interp, (char *) "vecexpr: unrecognized function keyword", TCL_STATIC);
-      if (stack[0]) { delete [] stack[0]; delete [] stack[1]; delete [] reg;}
       return TCL_ERROR;
     }
   }
 
+  if ( stack.size() == 0 ) {
+    // Stack is empty at end of evaluation, just return 0
+    stack.push_back (std::vector<double> (1, 0.0));
+  }
+
+  count_back = stack.back().size();
   Tcl_Obj *tcl_result = Tcl_NewListObj(0, NULL);
-  for (int i = 0; i < (stack_is_vect[sp] ? vecsize : 1); i++) {
-    Tcl_ListObjAppendElement(interp, tcl_result, Tcl_NewDoubleObj(stack[sp][i]));
+  for (int i = 0; i < count_back; i++) {
+    Tcl_ListObjAppendElement(interp, tcl_result, Tcl_NewDoubleObj(stack.back()[i]));
   }
   Tcl_SetObjResult(interp, tcl_result);
-  if (stack[0]) { delete [] stack[0]; delete [] stack[1]; delete [] reg;}
   return TCL_OK;
 }
 
 extern "C" {
-int Vecexpr_Init(Tcl_Interp *interp) {
-  Tcl_CreateObjCommand(interp, "vecexpr", obj_vecexpr,
-                  (ClientData) NULL, (Tcl_CmdDeleteProc *) NULL);
-  return TCL_OK;
-}
+  int Vecexpr_Init(Tcl_Interp *interp) {
+    Tcl_CreateObjCommand(interp, "vecexpr", obj_vecexpr,
+                    (ClientData) NULL, (Tcl_CmdDeleteProc *) NULL);
+    return TCL_OK;
+  }
 }
