@@ -24,7 +24,7 @@ Examples:
 `pi` (constant), `height` (current stack height, for debugging), `<varName` (push Tcl var - can be done with $var as well), `recall` (after calling store)
 
 ### unary
-`abs` `cos` `sin` `exp` `floor` `log` `mean` `min` `max` `pow` `pi` `sq` `sqrt` `sum` `>varName` (pop into Tcl var), `&varName` (push floor values to an int variable), `store` (`recall` is 0-ary) `dup` (duplicate in the stack), `pop`
+`abs` `cos` `sin` `exp` `floor` `log` `mean` `min` `max` `pi` `round` `sq` `sqrt` `sum` `>varName` (pop into Tcl var), `&varName` (push floor values to an int variable), `store` (`recall` is 0-ary) `dup` (duplicate in the stack), `pop`
 
 ### binary
 `add` `sub` `mult` `dot` `div` `concat` `swap`
