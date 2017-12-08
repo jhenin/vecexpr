@@ -270,6 +270,13 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         continue;
       }
 
+      if (!strcmp(funct, "round")) { // FUNCTION: ROUND
+        for (int i = 0; i < count_back; i++) { 
+          stack.back()[i] = round(stack.back()[i]);
+        }
+        continue;
+      }
+
       if (!strcmp(funct, "sq")) { // FUNCTION: SQ
         for (int i = 0; i < count_back; i++) { 
           stack.back()[i] *= stack.back()[i];
