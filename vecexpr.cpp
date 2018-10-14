@@ -24,7 +24,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
 // (*) all binary functions except dot accept mixed scalar/vector operands
 // vector lengths must match except for concat and swap
 
-// Matrix multiplication: matrices are stored unrolled (by lines)
+// Matrix multiplication: matrices are unrolled in row-major order
 // the common dimension is pushed on the stack last:
 // vecexpr "1 0 0 1" "1 2" 2 matmult   gives  "1.0 2.0"
 // vecexpr "1 0 0 1" "1 2" 1 matmult   gives  "1.0 2.0 0.0 0.0 0.0 0.0 1.0 2.0"
@@ -317,6 +317,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         return TCL_ERROR;
       }
 
+      int back = stack.size()-1; // last on stack
       int prev = stack.size()-2; // second-to-last on stack
       count_prev = stack[prev].size();
       mismatched = (count_back != count_prev);
@@ -346,11 +347,44 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
           }
         } else {
           if ( mismatched ) {
-            Tcl_SetResult(interp, (char *)  "vecexpr: attempting binary function on different-length vectors", TCL_STATIC);
-            return TCL_ERROR;
-          }
-          for (int i = 0; i < count_back; i++) {
-            stack[prev][i] += stack.back()[i];
+            // This could be a vector-matrix addition
+            const int ivec = (count_back < count_prev ? back : prev);
+            const int imat = (count_back < count_prev ? prev : back);
+            std::vector<double> & vec = stack[ivec];
+            std::vector<double> & mat = stack[imat];
+            int count_mat = mat.size();
+            int count_vec = vec.size();
+            if (count_mat % count_vec) {
+              Tcl_SetResult(interp, (char *) "vecexpr: matrix-vector add with non-divisor vector length", TCL_STATIC);
+              return TCL_ERROR;
+            }
+            if (count_back < count_prev) {
+              // <matrix> <vector> add: add vector to matrix rows
+              int k = 0;
+              for (int i = 0; i < count_mat / count_vec; i++) {
+                for (int j = 0; j < count_vec; j++) {
+                  mat[k++] += vec[j];
+                }
+              }
+              stack.pop_back(); // get vector off the stack
+            } else {
+              // <vector> <matrix> add: add vector to matrix columns
+              int k = 0;
+              for (int j = 0; j < count_vec; j++) {
+                for (int i = 0; i < count_mat / count_vec; i++) {
+                  mat[k++] += vec[j];
+                }
+              }
+              // vector remains on stack
+            }
+            
+            // Leave matrix at the back of the stack, popping vector if necessary
+            continue;
+
+          } else {
+            for (int i = 0; i < count_back; i++) {
+              stack[prev][i] += stack.back()[i];
+            }
           }
         }
         stack.pop_back();
@@ -479,8 +513,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         int ni1 = mat1->size() / nj1;
         int nj2 = mat2->size() / ni2;
 
-        stack.push_back (std::vector<double> (0, 0.0));
-        stack.back().resize (ni1 * nj2);
+        stack.push_back (std::vector<double> (ni1 * nj2, 0.0));
 
         double sum;
         int index1 = 0;
