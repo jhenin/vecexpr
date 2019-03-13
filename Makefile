@@ -2,7 +2,7 @@
 TCLINC=-I/usr/include/tcl8.6
 
 CPP=g++
-CPPFLAGS=-fpic -O3 $(TCLINC)
+CPPFLAGS=-fpic -O3 $(TCLINC) -pedantic
 
 all: vecexpr.so
 
