@@ -28,9 +28,9 @@ Examples:
 `abs` `cos` `sin` `exp` `floor` `log` `mean` `min` `max` `pi` `round` `sq` `sqrt` `sum` `>varName` (pop into Tcl var), `&varName` (push floor values to an int variable), `store` (`recall` is 0-ary) `dup` (duplicate in the stack), `pop`
 
 ### binary
-`add` `sub` `mult` `dot` `div` `concat` `swap`
+`add` `sub` `mult` `matmult` (see below) `dot` `div` `concat` `swap`
 
-All binary functions except `dot` accept mixed scalar/vector operands.
+All binary functions except `dot` and `matmult` accept mixed scalar/vector operands.
 Vector lengths must match, except for `concat` and `swap`.
 
 ## Matrix multiplication
@@ -40,8 +40,3 @@ Push on the stack both matrices, then the common dimension:
 `vecexpr "1 0 0 1" "1 2" 2 matmult`   gives  `"1.0 2.0"`
 
 `vecexpr "1 0 0 1" "1 2" 1 matmult`   gives  `"1.0 2.0 0.0 0.0 0.0 0.0 1.0 2.0"`
-
-
-## Projected additions
-(if there is demand for them)
-norm (normalize), asin acos atan, cross (3-vectors)
