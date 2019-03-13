@@ -16,7 +16,8 @@ Examples:
 
 `vecexpr "1 2 3" "4 5 6" add`
 
-`vecexpr "1.2 -2.3 3.2" #; puts $int` (prints `1 -3 3`)
+`vecexpr "1.2 -2.3 3.2" floor >int; puts $int` 
+(prints `1.0 -3.0 3.0`)
 
 ## Operators
 
