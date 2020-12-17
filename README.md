@@ -18,9 +18,10 @@ Examples:
 
 ```
 set vec "1 2 3"
-vecexpr $vec "4 5 6" add
+vecexpr $vec "4 5 6" add >othervec
+puts $othervec
 ```
-(returns `5 7 9`)
+(prints `5.0 7.0 9.0`)
 
 `vecexpr "1.2 -2.3 3.2" floor >integers; puts $integers` 
 (prints `1.0 -3.0 3.0`)
