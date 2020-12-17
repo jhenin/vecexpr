@@ -16,8 +16,10 @@ Arguments: scalars, vectors (Tcl lists), matrices (flattened, [row-major](https:
 
 Examples:
 
-`set vec "1 2 3"`
-`vecexpr $vec "4 5 6" add`
+```
+set vec "1 2 3"
+vecexpr $vec "4 5 6" add
+```
 (returns `5 7 9`)
 
 `vecexpr "1.2 -2.3 3.2" floor >integers; puts $integers` 
