@@ -4,7 +4,9 @@ Vector-based pocket calculator for Tcl : a much faster alternative to long loops
 ## Compiling and loading vecexpr
 
 Compile using the Makefile provided (amending the Tcl lib path).
-Load into a Tcl interpreter: `load vecexpr.so`
+Run tests from the shell: `$ tclsh test.tcl`
+Start Tcl interpreter: `tclsh`
+Then load into Tcl interpreter: `% load vecexpr.so`
 
 ## Syntax
 
@@ -44,12 +46,13 @@ Push on the stack both matrices, then the common dimension:
 `vecexpr "1 0 0 1" "1 2" 1 matmult`   gives  `"1.0 2.0 0.0 0.0 0.0 0.0 1.0 2.0"`
 
 ## Complete table of operators
+This table lists each operator, the number of operands it uses (top n vectors on the stack), and the change in stack height after execution, that is, how many items are added or removed.
 
 | Operator | n. operands | Stack chg. | Action                                                                                                                |
 |----------|-------------|------------|-----------------------------------------------------------------------------------------------------------------------|
-| <varName | 0           | +1         | push Tcl var. varName on the stack                                                                                    |
-| >varName | 1           | -1         | pop into Tcl var. varName                                                                                             |
-| &varName | 1           | 0          | push integer-typed floor values into variable varName                                                                 |
+| <*varName* | 0         | +1         | push Tcl var. *varName* on the stack                                                                                  |
+| >*varName* | 1         | -1         | pop into Tcl var. *varName*                                                                                           |
+| &*varName* | 1         | 0          | push integer-typed floor values into variable *varName*                                                               |
 | abs      | 1           | 0          | absolute value                                                                                                        |
 | add      | 2           | -1         | add 2 same-length vectors, or vector and scalar (element-wise), or column-vector and matrix, or matrix and row-vector |
 | concat   | 2           | -1         | concatenate two top vectors                                                                                           |
