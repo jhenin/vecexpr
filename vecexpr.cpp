@@ -13,7 +13,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
 // There is a FIFO stack, plus an extra register (used via store and recall)
 // Arguments: vectors, scalars, builtin function names
 
-// TODO: norm (normalize), asin acos atan, cross (3-vectors)
+// TODO: norm (normalize), asin acos atan, cross (3-vectors), range (unary, creates sequence to given int)
 
 // Available functions:
 // nullary: pi (constant), height (current stack height, for debugging), <varName (push Tcl var - can be done with $var as well)
@@ -69,7 +69,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
     }
 
     is_data = (Tcl_GetDoubleFromObj(interp, data[0], &scalar) == TCL_OK);
-    
+
     if ( is_data ) {
       // parse list and push
       stack.push_back (std::vector <double>());
@@ -84,7 +84,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
       }
     } else {
       // functions
-      
+
       if (num != 1) {
         Tcl_SetResult(interp, (char *) "vecexpr: error parsing list with more than one element as function", TCL_STATIC);
         return TCL_ERROR;
@@ -125,7 +125,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
       // { vecexpr <a <b add } ???
       // (the answer might lie in the code used internally to parse expr:
       // http://tcl.cvs.sourceforge.net/viewvc/tcl/tcl/generic/tclCompExpr.c?view=markup )
-      
+
         const char *varName = &funct[1];
         Tcl_Obj *varData = Tcl_GetVar2Ex( interp, varName, NULL, 0);
         if ( varData == NULL ) {
@@ -160,15 +160,15 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         Tcl_SetResult(interp, (char *) "vecexpr: calling function with empty stack", TCL_STATIC);
         return TCL_ERROR;
       }
-      
+
       count_back = stack.back().size();
 
       // Unary functions
-     
+
       if ( funct[0] == '>' ) { // FUNCTION: POP TO VARIABLE
         const char *varName = &funct[1];
         Tcl_Obj * newList = Tcl_NewListObj (0, NULL);
-        for (int i = 0; i < count_back; i++) { 
+        for (int i = 0; i < count_back; i++) {
           Tcl_ListObjAppendElement (interp, newList, Tcl_NewDoubleObj(stack.back()[i]));
         }
         Tcl_SetVar2Ex (interp, varName, NULL, newList, 0);
@@ -179,7 +179,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
       if ( funct[0] == '&' ) { // FUNCTION: pop to integer variable
         const char *varName = &funct[1];
         Tcl_Obj * newList = Tcl_NewListObj (0, NULL);
-        for (int i = 0; i < count_back; i++) { 
+        for (int i = 0; i < count_back; i++) {
           double const val = stack.back()[i];
           long int floor = val < 0 ? (long int)val - 1 : (long int)val;
           Tcl_ListObjAppendElement (interp, newList, Tcl_NewIntObj(floor));
@@ -190,35 +190,42 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
       }
 
       if (!strcmp(funct, "abs")) { // FUNCTION: ABS
-        for (int i = 0; i < count_back; i++) { 
+        for (int i = 0; i < count_back; i++) {
           stack.back()[i] = fabs(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "cos")) { // FUNCTION: COS
-        for (int i = 0; i < count_back; i++) { 
+        for (int i = 0; i < count_back; i++) {
           stack.back()[i] = cos(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "sin")) { // FUNCTION: SIN
-        for (int i = 0; i < count_back; i++) { 
+        for (int i = 0; i < count_back; i++) {
           stack.back()[i] = sin(stack.back()[i]);
         }
         continue;
       }
 
+      if (!strcmp(funct, "tan")) { // FUNCTION: SIN
+        for (int i = 0; i < count_back; i++) {
+          stack.back()[i] = tan(stack.back()[i]);
+        }
+        continue;
+      }
+
       if (!strcmp(funct, "exp")) { // FUNCTION: EXP
-        for (int i = 0; i < count_back; i++) { 
+        for (int i = 0; i < count_back; i++) {
           stack.back()[i] = exp(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "log")) { // FUNCTION: LOG
-        for (int i = 0; i < count_back; i++) { 
+        for (int i = 0; i < count_back; i++) {
           if (stack.back()[i] <= 0.0) {
             Tcl_SetResult(interp, (char *) "vecexpr: taking log of non-positive value", TCL_STATIC);
             return TCL_ERROR;
@@ -229,67 +236,72 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
       }
 
       if (!strcmp(funct, "mean")) { // FUNCTION: MEAN
-        for (int i = 1; i < count_back; i++) { 
-          stack.back()[0] += stack.back()[i];
+        double sum = stack.back()[0];
+        for (int i = 1; i < count_back; i++) {
+          sum += stack.back()[i];
         }
-        stack.back()[0] /= double (count_back);
-        stack.back().resize(1);
+        stack.push_back(std::vector<double> (1, sum / count_back));
         continue;
       }
 
       if (!strcmp(funct, "min")) { // FUNCTION: MIN
-        for (int i = 1; i < count_back; i++) { 
-          if (stack.back()[i] < stack.back()[0])
-            stack.back()[0] = stack.back()[i];
+        double min = stack.back()[0];
+        for (int i = 1; i < count_back; i++) {
+          if (stack.back()[i] < min)
+            min = stack.back()[i];
         }
-        stack.back().resize(1);
+        stack.push_back(std::vector<double> (1, min));
         continue;
       }
 
       if (!strcmp(funct, "max")) { // FUNCTION: MAX
-        for (int i = 1; i < count_back; i++) { 
-          if (stack.back()[i] > stack.back()[0])
-            stack.back()[0] = stack.back()[i];
+        double max = stack.back()[0];
+        for (int i = 1; i < count_back; i++) {
+          if (stack.back()[i] > max)
+            max = stack.back()[i];
         }
-        stack.back().resize(1);
+        stack.push_back(std::vector<double> (1, max));
         continue;
       }
 
       if (!strcmp(funct, "sum")) { // FUNCTION: SUM
-        for (int i = 1; i < count_back; i++) { 
-          stack.back()[0] += stack.back()[i];
+        double sum = stack.back()[0];
+        for (int i = 1; i < count_back; i++) {
+          sum += stack.back()[i];
         }
-        stack.back().resize(1);
+        stack.push_back(std::vector<double> (1, sum));
         continue;
       }
 
       if (!strcmp(funct, "floor")) { // FUNCTION: FLOOR
-        for (int i = 0; i < count_back; i++) { 
+        for (int i = 0; i < count_back; i++) {
           stack.back()[i] = floor(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "round")) { // FUNCTION: ROUND
-        for (int i = 0; i < count_back; i++) { 
+        for (int i = 0; i < count_back; i++) {
           stack.back()[i] = round(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "sq")) { // FUNCTION: SQ
-        for (int i = 0; i < count_back; i++) { 
+        for (int i = 0; i < count_back; i++) {
           stack.back()[i] *= stack.back()[i];
         }
         continue;
       }
 
       if (!strcmp(funct, "sqrt")) { // FUNCTION: SQRT
-        for (int i = 0; i < count_back; i++) { 
+        for (int i = 0; i < count_back; i++) {
+#ifdef DEBUG
           if (stack.back()[i] < 0.0) {
             Tcl_SetResult(interp, (char *) "vecexpr: taking sqrt of negative value", TCL_STATIC);
             return TCL_ERROR;
           }
+#endif
           stack.back()[i] = sqrt(stack.back()[i]);
         }
         continue;
@@ -337,12 +349,12 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
       }
 
       if (!strcmp(funct, "add")) { // FUNCTION: ADD
-        if ( count_back == 1 || count_prev == 1 ) {
+        if ( count_back == 1 || count_prev == 1 ) { // Add scalar to vector / matrix
           if (count_back > 1) {
             stack.back().swap(stack[prev]);
             count_prev = count_back;
           }
-          for (int i = 0; i < count_prev; i++) { 
+          for (int i = 0; i < count_prev; i++) {
             stack[prev][i] += stack.back()[0];
           }
         } else {
@@ -375,10 +387,11 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
                   mat[k++] += vec[j];
                 }
               }
-              // vector remains on stack
+              stack.back().swap(stack[prev]); // move vector to the back
+              stack.pop_back(); // get vector off the stack
             }
-            
-            // Leave matrix at the back of the stack, popping vector if necessary
+
+            // Leave matrix at the back of the stack
             continue;
 
           } else {
@@ -389,7 +402,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         }
         stack.pop_back();
         continue;
-      } 
+      }
 
       if ( !strcmp(funct, "div") ) { // FUNCTION: DIV
         bool zero = false;
@@ -402,11 +415,11 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
           if (count_back > 1) {
             stack.back().swap(stack[prev]);
             count_prev = count_back;
-            for (int i = 0; i < count_prev; i++) { 
+            for (int i = 0; i < count_prev; i++) {
               stack[prev][i] = stack.back()[0] / stack[prev][i];
             }
           } else {
-            for (int i = 0; i < count_prev; i++) { 
+            for (int i = 0; i < count_prev; i++) {
               stack[prev][i] /= stack.back()[0];
             }
           }
@@ -436,7 +449,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         stack.back().resize (1);
         stack.back()[0] = dot;
         continue;
-      } 
+      }
 
       if (!strcmp(funct, "mult")) { // FUNCTION: MULT
         if ( count_back == 1 || count_prev == 1 ) {
@@ -444,7 +457,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
             stack.back().swap(stack[prev]);
             count_prev = count_back;
           }
-          for (int i = 0; i < count_prev; i++) { 
+          for (int i = 0; i < count_prev; i++) {
             stack[prev][i] *= stack.back()[0];
           }
         } else {
@@ -458,18 +471,18 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         }
         stack.pop_back();
         continue;
-      } 
+      }
 
       if ( !strcmp(funct, "sub") ) { // FUNCTION: SUB
-        if ( count_back == 1 || count_prev == 1 ) {
+        if ( count_back == 1 || count_prev == 1 ) { // subtract scalar from vector or reverse
           if (count_back > 1) {
             stack.back().swap(stack[prev]);
             count_prev = count_back;
-            for (int i = 0; i < count_prev; i++) { 
+            for (int i = 0; i < count_prev; i++) {
               stack[prev][i] = stack.back()[0] - stack[prev][i];
             }
           } else {
-            for (int i = 0; i < count_prev; i++) { 
+            for (int i = 0; i < count_prev; i++) {
               stack[prev][i] -= stack.back()[0];
             }
           }
@@ -492,11 +505,11 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         Tcl_SetResult(interp, (char *)  "vecexpr: unrecognized vector function, or too few items on stack", TCL_STATIC);
         return TCL_ERROR;
       }
-      
+
       if ( !strcmp(funct, "matmult") ) { // FUNCTION: MATMULT
-       
+
         if (stack.back().size() != 1) {
-            Tcl_SetResult (interp, (char *) "matmult: common dimension specifier should be a scalar", TCL_STATIC); 
+            Tcl_SetResult (interp, (char *) "matmult: common dimension specifier should be a scalar", TCL_STATIC);
             return TCL_ERROR;
         }
         int nj1 = stack.back()[0];
@@ -507,7 +520,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         std::vector<double> * mat2 = &(stack.back());
 
         if (mat1->size() % nj1 || mat2->size() % ni2) {
-            Tcl_SetResult (interp, (char *) "matmult: matrix size not a multiple of common dimension", TCL_STATIC); 
+            Tcl_SetResult (interp, (char *) "matmult: matrix size not a multiple of common dimension", TCL_STATIC);
             return TCL_ERROR;
         }
         int ni1 = mat1->size() / nj1;
@@ -532,7 +545,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
                 stack.back()[index++] = sum;
             }
             index1 += nj1;
-        }      
+        }
         // TODO: pop the previous matrices?
         // stack.erase(...) may incur a peformance penalty
         continue;
