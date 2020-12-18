@@ -17,11 +17,11 @@ Arguments: scalars, vectors (Tcl lists), matrices (flattened, [row-major](https:
 Examples:
 
 ```
-set vec "1 2 3"
-vecexpr $vec "4 5 6" add >othervec
-puts $othervec
+% set vec "1 2 3"
+% vecexpr $vec "4 5 6" add >othervec
+% puts $othervec
+5.0 7.0 9.0
 ```
-(prints `5.0 7.0 9.0`)
 
 `vecexpr "1.2 -2.3 3.2" floor >integers; puts $integers` 
 (prints `1.0 -3.0 3.0`)
@@ -40,13 +40,25 @@ puts $othervec
 All binary functions except `dot` and `matmult` accept mixed scalar/vector operands.
 Vector lengths must match, except for `concat` and `swap`.
 
-## Matrix multiplication
+## Ternary: matrix multiplication
 Matrices are stored unrolled (by lines).
 Push on the stack both matrices, then the common dimension:
 
 `vecexpr "1 0 0 1" "1 2" 2 matmult`   gives  `"1.0 2.0"`
 
 `vecexpr "1 0 0 1" "1 2" 1 matmult`   gives  `"1.0 2.0 0.0 0.0 0.0 0.0 1.0 2.0"`
+
+### Quaternary: bin
+
+`vecexpr <data> <xmin> <dx> <nbins>`
+where xmin, dx and nbins are scalars. Will push on the stack a histogram of the data, with `nbins` bins of width `dx` starting at `xmin`. 
+The histogram can be saved as an integer-typed Tcl list using the '&' operator:
+```
+% vecexpr "1.1 2.1 2.2 3.5 4.1" 0. 1. 5 bin &histogram
+1.1 2.1 2.2 3.5 4.1
+% puts $histogram
+0 1 2 1 1
+```
 
 ## Complete table of operators
 This table lists each operator, the number of operands it uses (top n vectors on the stack), and the change in stack height after execution, that is, how many items are added or removed.
@@ -58,6 +70,7 @@ This table lists each operator, the number of operands it uses (top n vectors on
 | &*varName* | 1         | 0          | push integer-typed floor values into variable *varName*                                                               |
 | abs      | 1           | 0          | absolute value                                                                                                        |
 | add      | 2           | -1         | add 2 same-length vectors, or vector and scalar (element-wise), or column-vector and matrix, or matrix and row-vector |
+| bin      | 4           | -2         | push on the stack a histogram of the data, with `nbins` bins of width `dx` starting at `xmin`                         |
 | concat   | 2           | -1         | concatenate two top vectors                                                                                           |
 | cos      | 1           | 0          | cosine (angles in radians)                                                                                            |
 | div      | 2           | -1         | division (same-length vectors or vector by scalar or scalar by vector)                                                |

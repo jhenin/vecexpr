@@ -551,6 +551,34 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         continue;
       }
 
+      // end of ternary functions
+
+      if (stack.size() < 3) {
+        Tcl_SetResult(interp, (char *)  "vecexpr: unrecognized vector function, or too few items on stack", TCL_STATIC);
+        return TCL_ERROR;
+      }
+
+      if ( !strcmp(funct, "bin") ) { // FUNCTION: BIN
+
+        if (stack.back().size() * stack[stack.size()-2].size() * stack[stack.size()-3].size() != 1 ) {
+            Tcl_SetResult (interp, (char *) "bin needs 3 scalars on the stack: min, dx, and nbins.", TCL_STATIC);
+            return TCL_ERROR;
+        }
+        const double nbins = stack.back()[0]; stack.pop_back();
+        const double dx = stack.back()[0]; stack.pop_back();
+        const double min = stack.back()[0]; stack.pop_back();
+        stack.push_back(std::vector<double> (static_cast<size_t>(nbins), 0.0)); // Histogram
+        back = stack.size()-1; // histogram
+        prev = stack.size()-2; // data to bin
+
+        const int count = stack[prev].size();
+        for (int i = 0; i < count; i++) {
+          int bin = floor((stack[prev][i] - min) / dx);
+          if (bin >= 0 && bin < nbins) stack[back][bin] += 1.0;
+        }
+        continue;
+      }
+
       Tcl_SetResult(interp, (char *) "vecexpr: unrecognized function keyword", TCL_STATIC);
       return TCL_ERROR;
     }
@@ -558,7 +586,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
 
   if ( stack.size() == 0 ) {
     // Stack is empty at end of evaluation, just return 0
-    stack.push_back (std::vector<double> (1, 0.0));
+    stack.push_back(std::vector<double> (1, 0.0));
   }
 
   count_back = stack.back().size();
