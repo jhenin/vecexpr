@@ -587,6 +587,8 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
           int bin = floor((stack[prev][i] - min) / dx);
           if (bin >= 0 && bin < nbins) stack[back][bin] += 1.0;
         }
+        stack.back().swap(stack[prev]); // move data to the back
+        stack.pop_back(); // get data off the stack
         continue;
       }
 
