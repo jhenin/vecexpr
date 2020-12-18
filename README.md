@@ -11,8 +11,8 @@ Then load into Tcl interpreter: `% load vecexpr.so`
 ## Syntax
 
 Uses reverse Polish syntax (operands followed by operators).
-Uses a FIFO stack, plus an extra register (used via store and recall)
-Arguments: scalars, vectors (Tcl lists), matrices (flattened, [row-major](https://en.wikipedia.org/wiki/Row-_and_column-major_order)) and builtin operators.
+Uses a LIFO stack, plus an extra register (used via store and recall)
+Arguments: scalars, vectors (Tcl lists), matrices (flattened, [row-major](https://en.wikipedia.org/wiki/Row-_and_column-major_order)) and built-in operators.
 
 Examples:
 
