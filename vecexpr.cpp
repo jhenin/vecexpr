@@ -462,7 +462,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
           }
         } else {
           if ( mismatched ) {
-            Tcl_SetResult(interp, (char *)  "vecexpr: attempting binary function on different-length vectors", TCL_STATIC);
+            Tcl_SetResult(interp, (char *)  "vecexpr: cannot element-wise multiply different-length vectors", TCL_STATIC);
             return TCL_ERROR;
           }
           for (int i = 0; i < count_back; i++) {
@@ -488,7 +488,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
           }
         } else {
           if ( mismatched ) {
-            Tcl_SetResult(interp, (char *)  "vecexpr: attempting binary function on different-length vectors", TCL_STATIC);
+            Tcl_SetResult(interp, (char *)  "vecexpr: cannot element-wise subtract different-length vectors", TCL_STATIC);
             return TCL_ERROR;
           }
           for (int i = 0; i < count_back; i++) {
@@ -499,6 +499,17 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         continue;
       }
 
+      if ( !strcmp(funct, "atan2") ) { // FUNCTION: ATAN2(Y, X)
+        if ( mismatched ) {
+          Tcl_SetResult(interp, (char *)  "vecexpr: function atan2 requires two vectors of same length", TCL_STATIC);
+          return TCL_ERROR;
+        }
+        for (int i = 0; i < count_back; i++) {
+          stack[prev][i] = atan2(stack[prev][i], stack[back][i]);
+        }
+        stack.pop_back();
+        continue;
+      }
       // end of binary functions
 
       if (stack.size() < 3) {
