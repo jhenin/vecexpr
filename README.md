@@ -101,6 +101,6 @@ This table lists each operator, the number of operands it uses (top n vectors on
 | sqrt     | 1           | 0          | square root                                                                                                           |
 | store    | 1           | 0          | copy top vector to register                                                                                           |
 | sub      | 2           | -1         | subtract (see `add` for details)                                                                                      |
-| sum      | 1           | +1         | push sum of values on top vector                                                                                      |
+| sum      | 1           | +1         | push sum of values of top vector                                                                                      |
 | swap     | 2           | 0          | swap top two vectors of stack                                                                                         |
 | tan      | 1           | 0          | tangent (angles in radians)                                                                                           |
