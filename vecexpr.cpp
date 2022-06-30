@@ -451,6 +451,35 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         continue;
       }
 
+      if (!strcmp(funct, "min_ew")) { // FUNCTION: MIN_EW
+        if (count_back != 1) {
+          Tcl_SetResult(interp, (char *)  "vecexpr: top of the stack should be scalar (number of lines) for min_ew", TCL_STATIC);
+          return TCL_ERROR;
+        }
+        size_t nl = stack.back()[0];
+        if (count_prev % nl) {
+          Tcl_SetResult(interp, (char *)  "vecexpr: number of lines does not divide length of unrolled matrix", TCL_STATIC);
+          return TCL_ERROR;
+        }
+        size_t length = count_prev / nl;
+        if (length == 0 || nl < 2) { // No work to do
+          stack.pop_back();
+          continue;
+        }
+        std::vector<double> result(length);
+        for (size_t i = 0; i < length; i++) {
+          result[i] = stack[prev][i];
+          for (size_t j = 1; j < nl; j++) {
+            if (stack[prev][i+j*length] < result[i])
+              result[i] = stack[prev][i+j*length];
+          }
+        }
+        stack.pop_back();
+        stack.pop_back();
+        stack.push_back(result);
+        continue;
+      }
+
       if (!strcmp(funct, "mult")) { // FUNCTION: MULT
         if ( count_back == 1 || count_prev == 1 ) {
           if (count_back > 1) {
@@ -519,7 +548,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
 
       if ( !strcmp(funct, "matmult") ) { // FUNCTION: MATMULT
 
-        if (stack.back().size() != 1) {
+        if (count_back != 1) {
             Tcl_SetResult (interp, (char *) "matmult: common dimension specifier should be a scalar", TCL_STATIC);
             return TCL_ERROR;
         }

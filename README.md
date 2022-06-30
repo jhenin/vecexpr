@@ -91,6 +91,7 @@ This table lists each operator, the number of operands it uses (top n vectors on
 | max      | 1           | +1         | push max element of top vector                                                                                        |
 | mean     | 1           | +1         | push mean of top vector                                                                                               |
 | min      | 1           | +1         | push min of top vector                                                                                                |
+| min_ew   | 2           | -1         | element-wise minimum between lines of the top matrix (M, n, where n is the number of lines)                           |
 | mult     | 2           | -1         | element-wise multiply vectors, or multiply vector and scalar                                                          |
 | pi       | 0           | +1         | push pi constant onto stack                                                                                           |
 | pop      | 1           | -1         | remove top vector from stack                                                                                          |
@@ -104,3 +105,6 @@ This table lists each operator, the number of operands it uses (top n vectors on
 | sum      | 1           | +1         | push sum of values of top vector                                                                                      |
 | swap     | 2           | 0          | swap top two vectors of stack                                                                                         |
 | tan      | 1           | 0          | tangent (angles in radians)                                                                                           |
+
+# TODO
+# | transp   | 2           | -1         | transpose top matrix (M, n, where n is the number of lines)                                                           |

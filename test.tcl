@@ -15,6 +15,8 @@ test "{1 2} {0 0 0 0 0 0} add"
 test "{0 0 0 0 0 0} {1 2} add"
 
 
+test "{0 23 -4 5 2 8} 2 min_ew"
+
 #puts [vecexpr 1 2 asd]
 
 #puts [vecexpr {1 2 3} {1 2 *&}]
