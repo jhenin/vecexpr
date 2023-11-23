@@ -4,9 +4,9 @@ Vector-based pocket calculator for Tcl : a much faster alternative to long loops
 ## Compiling and loading vecexpr
 
 Compile using the Makefile provided (amending the Tcl lib path).
-Run tests from the shell: `$ tclsh test.tcl`
+Run tests from the shell: `tclsh test.tcl`
 Start Tcl interpreter: `tclsh`
-Then load into Tcl interpreter: `% load vecexpr.so`
+Then load into Tcl interpreter: `load vecexpr.so`
 
 ## Syntax
 
@@ -105,6 +105,3 @@ This table lists each operator, the number of operands it uses (top n vectors on
 | sum      | 1           | +1         | push sum of values of top vector                                                                                      |
 | swap     | 2           | 0          | swap top two vectors of stack                                                                                         |
 | tan      | 1           | 0          | tangent (angles in radians)                                                                                           |
-
-# TODO
-# | transp   | 2           | -1         | transpose top matrix (M, n, where n is the number of lines)                                                           |
