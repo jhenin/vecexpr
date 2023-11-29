@@ -51,7 +51,6 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
   bool      mismatched;     // are two different-length vectors on top of the stack?
 
   std::vector<std::vector <double> > stack;
-  int nv; // number of vectors among top two items of stack
 
   // additional register
   std::vector <double> reg;
@@ -168,7 +167,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
       if ( funct[0] == '>' ) { // FUNCTION: POP TO VARIABLE
         const char *varName = &funct[1];
         Tcl_Obj * newList = Tcl_NewListObj (0, NULL);
-        for (int i = 0; i < count_back; i++) {
+        for (size_t i = 0; i < count_back; i++) {
           Tcl_ListObjAppendElement (interp, newList, Tcl_NewDoubleObj(stack.back()[i]));
         }
         Tcl_SetVar2Ex (interp, varName, NULL, newList, 0);
@@ -179,7 +178,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
       if ( funct[0] == '&' ) { // FUNCTION: pop to integer variable
         const char *varName = &funct[1];
         Tcl_Obj * newList = Tcl_NewListObj (0, NULL);
-        for (int i = 0; i < count_back; i++) {
+        for (size_t i = 0; i < count_back; i++) {
           double const val = stack.back()[i];
           long int floor = val < 0 ? (long int)val - 1 : (long int)val;
           Tcl_ListObjAppendElement (interp, newList, Tcl_NewIntObj(floor));
@@ -190,42 +189,42 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
       }
 
       if (!strcmp(funct, "abs")) { // FUNCTION: ABS
-        for (int i = 0; i < count_back; i++) {
+        for (size_t i = 0; i < count_back; i++) {
           stack.back()[i] = fabs(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "cos")) { // FUNCTION: COS
-        for (int i = 0; i < count_back; i++) {
+        for (size_t i = 0; i < count_back; i++) {
           stack.back()[i] = cos(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "sin")) { // FUNCTION: SIN
-        for (int i = 0; i < count_back; i++) {
+        for (size_t i = 0; i < count_back; i++) {
           stack.back()[i] = sin(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "tan")) { // FUNCTION: SIN
-        for (int i = 0; i < count_back; i++) {
+        for (size_t i = 0; i < count_back; i++) {
           stack.back()[i] = tan(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "exp")) { // FUNCTION: EXP
-        for (int i = 0; i < count_back; i++) {
+        for (size_t i = 0; i < count_back; i++) {
           stack.back()[i] = exp(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "log")) { // FUNCTION: LOG
-        for (int i = 0; i < count_back; i++) {
+        for (size_t i = 0; i < count_back; i++) {
           if (stack.back()[i] <= 0.0) {
             Tcl_SetResult(interp, (char *) "vecexpr: taking log of non-positive value", TCL_STATIC);
             return TCL_ERROR;
@@ -237,7 +236,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
 
       if (!strcmp(funct, "mean")) { // FUNCTION: MEAN
         double sum = stack.back()[0];
-        for (int i = 1; i < count_back; i++) {
+        for (size_t i = 1; i < count_back; i++) {
           sum += stack.back()[i];
         }
         stack.push_back(std::vector<double> (1, sum / count_back));
@@ -246,7 +245,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
 
       if (!strcmp(funct, "min")) { // FUNCTION: MIN
         double min = stack.back()[0];
-        for (int i = 1; i < count_back; i++) {
+        for (size_t i = 1; i < count_back; i++) {
           if (stack.back()[i] < min)
             min = stack.back()[i];
         }
@@ -256,7 +255,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
 
       if (!strcmp(funct, "max")) { // FUNCTION: MAX
         double max = stack.back()[0];
-        for (int i = 1; i < count_back; i++) {
+        for (size_t i = 1; i < count_back; i++) {
           if (stack.back()[i] > max)
             max = stack.back()[i];
         }
@@ -266,7 +265,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
 
       if (!strcmp(funct, "sum")) { // FUNCTION: SUM
         double sum = stack.back()[0];
-        for (int i = 1; i < count_back; i++) {
+        for (size_t i = 1; i < count_back; i++) {
           sum += stack.back()[i];
         }
         stack.push_back(std::vector<double> (1, sum));
@@ -274,28 +273,28 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
       }
 
       if (!strcmp(funct, "floor")) { // FUNCTION: FLOOR
-        for (int i = 0; i < count_back; i++) {
+        for (size_t i = 0; i < count_back; i++) {
           stack.back()[i] = floor(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "round")) { // FUNCTION: ROUND
-        for (int i = 0; i < count_back; i++) {
+        for (size_t i = 0; i < count_back; i++) {
           stack.back()[i] = round(stack.back()[i]);
         }
         continue;
       }
 
       if (!strcmp(funct, "sq")) { // FUNCTION: SQ
-        for (int i = 0; i < count_back; i++) {
+        for (size_t i = 0; i < count_back; i++) {
           stack.back()[i] *= stack.back()[i];
         }
         continue;
       }
 
       if (!strcmp(funct, "sqrt")) { // FUNCTION: SQRT
-        for (int i = 0; i < count_back; i++) {
+        for (size_t i = 0; i < count_back; i++) {
 #ifdef DEBUG
           if (stack.back()[i] < 0.0) {
             Tcl_SetResult(interp, (char *) "vecexpr: taking sqrt of negative value", TCL_STATIC);
@@ -336,7 +335,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
 
       if (!strcmp(funct, "concat")) { // FUNCTION: CONCAT
         stack[prev].reserve(count_prev + count_back);
-        for (int i = 0; i < count_back; i++) {
+        for (size_t i = 0; i < count_back; i++) {
           stack[prev].push_back (stack.back()[i]);
         }
         stack.pop_back();
@@ -354,7 +353,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
             stack.back().swap(stack[prev]);
             count_prev = count_back;
           }
-          for (int i = 0; i < count_prev; i++) {
+          for (size_t i = 0; i < count_prev; i++) {
             stack[prev][i] += stack.back()[0];
           }
         } else {
@@ -364,8 +363,8 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
             const int imat = (count_back < count_prev ? prev : back);
             std::vector<double> & vec = stack[ivec];
             std::vector<double> & mat = stack[imat];
-            int count_mat = mat.size();
-            int count_vec = vec.size();
+            size_t count_mat = mat.size();
+            size_t count_vec = vec.size();
             if (count_mat % count_vec) {
               Tcl_SetResult(interp, (char *) "vecexpr: matrix-vector add with non-divisor vector length", TCL_STATIC);
               return TCL_ERROR;
@@ -373,8 +372,8 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
             if (count_back < count_prev) {
               // <matrix> <vector> add: add vector to matrix rows
               int k = 0;
-              for (int i = 0; i < count_mat / count_vec; i++) {
-                for (int j = 0; j < count_vec; j++) {
+              for (size_t i = 0; i < count_mat / count_vec; i++) {
+                for (size_t j = 0; j < count_vec; j++) {
                   mat[k++] += vec[j];
                 }
               }
@@ -382,8 +381,8 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
             } else {
               // <vector> <matrix> add: add vector to matrix columns
               int k = 0;
-              for (int j = 0; j < count_vec; j++) {
-                for (int i = 0; i < count_mat / count_vec; i++) {
+              for (size_t j = 0; j < count_vec; j++) {
+                for (size_t i = 0; i < count_mat / count_vec; i++) {
                   mat[k++] += vec[j];
                 }
               }
@@ -395,7 +394,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
             continue;
 
           } else {
-            for (int i = 0; i < count_back; i++) {
+            for (size_t i = 0; i < count_back; i++) {
               stack[prev][i] += stack.back()[i];
             }
           }
@@ -406,7 +405,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
 
       if ( !strcmp(funct, "div") ) { // FUNCTION: DIV
         bool zero = false;
-        for (int i = 0; i < count_back; i++) {if (stack.back()[i] == 0.0) zero = true;}
+        for (size_t i = 0; i < count_back; i++) {if (stack.back()[i] == 0.0) zero = true;}
         if (zero) {
           Tcl_SetResult(interp, (char *) "vecexpr: divide by zero in function div", TCL_STATIC);
           return TCL_ERROR;
@@ -415,11 +414,11 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
           if (count_back > 1) {
             stack.back().swap(stack[prev]);
             count_prev = count_back;
-            for (int i = 0; i < count_prev; i++) {
+            for (size_t i = 0; i < count_prev; i++) {
               stack[prev][i] = stack.back()[0] / stack[prev][i];
             }
           } else {
-            for (int i = 0; i < count_prev; i++) {
+            for (size_t i = 0; i < count_prev; i++) {
               stack[prev][i] /= stack.back()[0];
             }
           }
@@ -428,7 +427,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
             Tcl_SetResult(interp, (char *)  "vecexpr: attempting binary function on different-length vectors", TCL_STATIC);
             return TCL_ERROR;
           }
-          for (int i = 0; i < count_back; i++) {
+          for (size_t i = 0; i < count_back; i++) {
             stack[prev][i] /= stack.back()[i];
           }
         }
@@ -442,7 +441,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
           return TCL_ERROR;
         }
         double dot = 0.0;
-        for (int i = 0; i < count_back; i++) {
+        for (size_t i = 0; i < count_back; i++) {
           dot += stack.back()[i] * stack[prev][i];
         }
         stack.pop_back();
@@ -486,7 +485,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
             stack.back().swap(stack[prev]);
             count_prev = count_back;
           }
-          for (int i = 0; i < count_prev; i++) {
+          for (size_t i = 0; i < count_prev; i++) {
             stack[prev][i] *= stack.back()[0];
           }
         } else {
@@ -494,7 +493,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
             Tcl_SetResult(interp, (char *)  "vecexpr: cannot element-wise multiply different-length vectors", TCL_STATIC);
             return TCL_ERROR;
           }
-          for (int i = 0; i < count_back; i++) {
+          for (size_t i = 0; i < count_back; i++) {
             stack[prev][i] *= stack.back()[i];
           }
         }
@@ -507,11 +506,11 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
           if (count_back > 1) {
             stack.back().swap(stack[prev]);
             count_prev = count_back;
-            for (int i = 0; i < count_prev; i++) {
+            for (size_t i = 0; i < count_prev; i++) {
               stack[prev][i] = stack.back()[0] - stack[prev][i];
             }
           } else {
-            for (int i = 0; i < count_prev; i++) {
+            for (size_t i = 0; i < count_prev; i++) {
               stack[prev][i] -= stack.back()[0];
             }
           }
@@ -520,7 +519,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
             Tcl_SetResult(interp, (char *)  "vecexpr: cannot element-wise subtract different-length vectors", TCL_STATIC);
             return TCL_ERROR;
           }
-          for (int i = 0; i < count_back; i++) {
+          for (size_t i = 0; i < count_back; i++) {
             stack[prev][i] -= stack.back()[i];
           }
         }
@@ -533,7 +532,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
           Tcl_SetResult(interp, (char *)  "vecexpr: function atan2 requires two vectors of same length", TCL_STATIC);
           return TCL_ERROR;
         }
-        for (int i = 0; i < count_back; i++) {
+        for (size_t i = 0; i < count_back; i++) {
           stack[prev][i] = atan2(stack[prev][i], stack[back][i]);
         }
         stack.pop_back();
@@ -563,8 +562,8 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
             Tcl_SetResult (interp, (char *) "matmult: matrix size not a multiple of common dimension", TCL_STATIC);
             return TCL_ERROR;
         }
-        int ni1 = mat1->size() / nj1;
-        int nj2 = mat2->size() / ni2;
+        size_t ni1 = mat1->size() / nj1;
+        size_t nj2 = mat2->size() / ni2;
 
         stack.push_back (std::vector<double> (ni1 * nj2, 0.0));
 
@@ -572,8 +571,8 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         int index1 = 0;
         int index2 = 0;
         int index = 0;
-        for (int i = 0; i < ni1; i++) {
-            for (int j = 0; j < nj2; j++) {
+        for (size_t i = 0; i < ni1; i++) {
+            for (size_t j = 0; j < nj2; j++) {
                 sum = 0.0;
                 index2 = j;
                 for (int k = 0; k < nj1; k++) {
@@ -611,8 +610,8 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         back = stack.size()-1; // histogram
         prev = stack.size()-2; // data to bin
 
-        const int count = stack[prev].size();
-        for (int i = 0; i < count; i++) {
+        const size_t count = stack[prev].size();
+        for (size_t i = 0; i < count; i++) {
           int bin = floor((stack[prev][i] - min) / dx);
           if (bin >= 0 && bin < nbins) stack[back][bin] += 1.0;
         }
@@ -633,7 +632,7 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
 
   count_back = stack.back().size();
   Tcl_Obj *tcl_result = Tcl_NewListObj(0, NULL);
-  for (int i = 0; i < count_back; i++) {
+  for (size_t i = 0; i < count_back; i++) {
     Tcl_ListObjAppendElement(interp, tcl_result, Tcl_NewDoubleObj(stack.back()[i]));
   }
   Tcl_SetObjResult(interp, tcl_result);
