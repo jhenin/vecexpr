@@ -2,12 +2,12 @@
 TCLINC=-I/usr/include/tcl8.6
 
 CPP=g++
-CPPFLAGS=-fpic -O3 $(TCLINC) -pedantic
+CPPFLAGS=-fPIC -O3 $(TCLINC) -pedantic
 
 all: vecexpr.so
 
 vecexpr.so: vecexpr.o
-	$(CPP) $(CPPFLAGS) -shared vecexpr.o -o vecexpr.so
+	$(CPP) $(CPPFLAGS) $^ -shared -o $@
 
 vecexpr.tar.gz: vecexpr.cpp Makefile
 	tar czf vecexpr.tar.gz vecexpr.cpp Makefile
