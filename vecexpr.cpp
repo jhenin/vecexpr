@@ -456,24 +456,26 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
           return TCL_ERROR;
         }
         size_t nl = stack.back()[0];
+        stack.pop_back();
+
         if (count_prev % nl) {
           Tcl_SetResult(interp, (char *)  "vecexpr: number of lines does not divide length of unrolled matrix", TCL_STATIC);
           return TCL_ERROR;
         }
         size_t length = count_prev / nl;
         if (length == 0 || nl < 2) { // No work to do
-          stack.pop_back();
           continue;
         }
         std::vector<double> result(length);
-        for (size_t i = 0; i < length; i++) {
-          result[i] = stack[prev][i];
-          for (size_t j = 1; j < nl; j++) {
-            if (stack[prev][i+j*length] < result[i])
-              result[i] = stack[prev][i+j*length];
+        std::vector<double> &source = stack.back();
+
+        for (size_t j = 0; j < length; j++) {
+          result[j] = source[j];
+          for (size_t i = 1; i < nl; i++) {
+            if (source[i*length + j] < result[j])
+              result[j] = source[i*length + j];
           }
         }
-        stack.pop_back();
         stack.pop_back();
         stack.push_back(result);
         continue;
@@ -538,6 +540,35 @@ static int obj_vecexpr(ClientData, Tcl_Interp *interp, int argc, Tcl_Obj * const
         stack.pop_back();
         continue;
       }
+
+      if ( !strcmp(funct, "transp") ) { // FUNCTION: TRANSP
+        if (count_back != 1) {
+          Tcl_SetResult(interp, (char *)  "vecexpr: top of the stack should be scalar (number of lines) for transp", TCL_STATIC);
+          return TCL_ERROR;
+        }
+        size_t ni = stack.back()[0];
+        stack.pop_back();
+
+        if (count_prev % ni) {
+          Tcl_SetResult(interp, (char *)  "vecexpr: number of lines does not divide length of unrolled matrix", TCL_STATIC);
+          return TCL_ERROR;
+        }
+        size_t nj = count_prev / ni;
+        if (ni < 2 || nj < 2) { // No work to do
+          continue;
+        }
+        std::vector<double> buf(count_prev);
+        std::vector<double> &source = stack.back();
+
+        for (size_t i = 0; i < ni; i++) {
+          for (size_t j = 1; j < nj; j++) {
+              buf[ni * j + i] = source[nj * i + j];
+          }
+        }
+        source = buf;
+        continue;
+      }
+
       // end of binary functions
 
       if (stack.size() < 3) {

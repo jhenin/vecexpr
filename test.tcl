@@ -1,5 +1,8 @@
 #!/bin/tclsh
 
+set test_errors true
+
+
 load ./vecexpr.so
 
 proc test { cmd } {
@@ -19,6 +22,10 @@ test "{0 0 0 0 0 0} {1 2} add"
 
 test "{0 23 -4 5 2 8} 2 min_ew"
 
-#puts [vecexpr 1 2 asd]
+test "{1 2 3 4 5 6} 2 transp"
+test "{1 2 3 4 5 6} 3 transp"
 
-#puts [vecexpr {1 2 3} {1 2 *&}]
+if { $test_errors } {
+  puts [vecexpr 1 2 asd]
+  puts [vecexpr {1 2 3} {1 2 *&}]
+}

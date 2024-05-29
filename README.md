@@ -46,14 +46,6 @@ Example usage of `atan2`, converting result to degrees (note order of operands: 
 90.0
 ```
 
-## Ternary: matrix multiplication
-Matrices are stored unrolled (by lines).
-Push on the stack both matrices, then the common dimension:
-
-`vecexpr "1 0 0 1" "1 2" 2 matmult`   gives  `"1.0 2.0"`
-
-`vecexpr "1 0 0 1" "1 2" 1 matmult`   gives  `"1.0 2.0 0.0 0.0 0.0 0.0 1.0 2.0"`
-
 ### Quaternary: bin
 
 `vecexpr <data> <xmin> <dx> <nbins>`
@@ -66,6 +58,26 @@ The histogram can be saved as an integer-typed Tcl list using the '&' operator:
 0 1 2 1 1
 ```
 
+## Matrix operations
+
+Matrices are stored unrolled (by lines).
+"Unary" matrix operations (`min_ew`, `transp`) are binary because they require the shape of the matrix, provided as the number of lines at the top of the stack.
+
+Transposing a (2,3) matrix:
+
+`vecexpr "1 2 3 4 5 6" 2 transp`  ->  `1.0 4.0 2.0 5.0 3.0 6.0`
+
+Transposing the (3,2) matrix with the same (flattened) elements:
+
+`vecexpr "1 2 3 4 5 6" 3 transp`  ->  `1.0 3.0 5.0 2.0 4.0 6.0`
+
+For **matrix multiplication**, push both matrices on the stack, then the common dimension:
+
+`vecexpr "1 0 0 1" "1 2" 2 matmult`  ->  `"1.0 2.0"`
+
+`vecexpr "1 0 0 1" "1 2" 1 matmult`  ->  `"1.0 2.0 0.0 0.0 0.0 0.0 1.0 2.0"`
+
+
 ## Complete table of operators
 This table lists each operator, the number of operands it uses (top n vectors on the stack), and the change in stack height after execution, that is, how many items are added or removed.
 
@@ -73,7 +85,7 @@ This table lists each operator, the number of operands it uses (top n vectors on
 |----------|-------------|------------|-----------------------------------------------------------------------------------------------------------------------|
 | <*varName* | 0         | +1         | push Tcl var. *varName* on the stack (in practice, $*varName* is faster)                                              |
 | >*varName* | 1         | -1         | pop into Tcl var. *varName*                                                                                           |
-| &*varName* | 1         | 0          | copy integer-typed floor values to variable *varName*                                                               |
+| &*varName* | 1         | 0          | copy integer-typed floor values to variable *varName*                                                                 |
 | abs      | 1           | 0          | absolute value                                                                                                        |
 | add      | 2           | -1         | add 2 same-length vectors, or vector and scalar (element-wise), or column-vector and matrix, or matrix and row-vector |
 | atan2    | 2           | -1         | given vectors y and x, push element-wise arctangent of y / x (in radians)                                             |
@@ -105,3 +117,4 @@ This table lists each operator, the number of operands it uses (top n vectors on
 | sum      | 1           | +1         | push sum of values of top vector                                                                                      |
 | swap     | 2           | 0          | swap top two vectors of stack                                                                                         |
 | tan      | 1           | 0          | tangent (angles in radians)                                                                                           |
+| transp   | 2           | -1         | transpose top matrix (M, n, where n is the number of lines)                                                           |
