@@ -32,7 +32,7 @@ Examples:
 `pi` (constant), `height` (current stack height, for debugging), `<varName` (push Tcl var - can be done with $varName as well), `recall` (after calling store)
 
 ### unary
-`abs` `cos` `sin` `tan` `exp` `floor` `log` `mean` `min` `max` `round` `sq` `sqrt` `sum` `>varName` (pop into Tcl var), `&varName` (push floor values to an int variable), `store` (`recall` is 0-ary) `dup` (duplicate in the stack), `pop`
+`abs` `cos` `sin` `tan` `exp` `floor` `log` `mean` `min` `max` `round` `sq` `sqrt` `sum` `>varName` (pop into Tcl var), `&varName` (copy floor values to an int variable), `store` (`recall` is 0-ary) `dup` (duplicate in the stack), `pop`
 
 ### binary
 `add` `sub` `mult` `matmult` (see below) `dot` `div` `concat` `swap` `atan2`
@@ -71,9 +71,9 @@ This table lists each operator, the number of operands it uses (top n vectors on
 
 | Operator | n. operands | Stack chg. | Action                                                                                                                |
 |----------|-------------|------------|-----------------------------------------------------------------------------------------------------------------------|
-| <*varName* | 0         | +1         | push Tcl var. *varName* on the stack                                                                                  |
+| <*varName* | 0         | +1         | push Tcl var. *varName* on the stack (in practice, $*varName* is faster)                                              |
 | >*varName* | 1         | -1         | pop into Tcl var. *varName*                                                                                           |
-| &*varName* | 1         | 0          | push integer-typed floor values into variable *varName*                                                               |
+| &*varName* | 1         | 0          | copy integer-typed floor values to variable *varName*                                                               |
 | abs      | 1           | 0          | absolute value                                                                                                        |
 | add      | 2           | -1         | add 2 same-length vectors, or vector and scalar (element-wise), or column-vector and matrix, or matrix and row-vector |
 | atan2    | 2           | -1         | given vectors y and x, push element-wise arctangent of y / x (in radians)                                             |

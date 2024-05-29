@@ -1,3 +1,5 @@
+#!/bin/tclsh
+
 load ./vecexpr.so
 
 proc test { cmd } {
