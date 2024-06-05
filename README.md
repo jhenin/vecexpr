@@ -60,7 +60,7 @@ The histogram can be saved as an integer-typed Tcl list using the '&' operator:
 
 ## Matrix operations
 
-Matrices are stored unrolled (by lines).
+Matrices are stored unrolled (in row-major order).
 "Unary" matrix operations (`min_ew`, `transp`) are binary because they require the shape of the matrix, provided as the number of lines at the top of the stack.
 
 Transposing a (2,3) matrix:
