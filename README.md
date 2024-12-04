@@ -1,5 +1,5 @@
 # vecexpr
-Vector-based pocket calculator for Tcl : a much faster alternative to long loops calling `expr` over vector data.
+Vector-based pocket calculator for Tcl implemented in C++ : a much faster alternative to long loops calling `expr` over vector data.
 
 ## Compiling and loading vecexpr
 
