@@ -89,7 +89,7 @@ This table lists each operator, the number of operands it uses (top n vectors on
 | abs      | 1           | 0          | absolute value                                                                                                        |
 | add      | 2           | -1         | add 2 same-length vectors, or vector and scalar (element-wise), or column-vector and matrix, or matrix and row-vector |
 | atan2    | 2           | -1         | given vectors y and x, push element-wise arctangent of y / x (in radians)                                             |
-| bin      | 4           | -3         | push on the stack a histogram of the data, with `nbins` bins of width `dx` starting at `xmin`                         |
+| bin      | 4           | -3         | histogram of the data, with `nbins` bins of width `dx` starting at `xmin`: `vecexpr $data $xmin $dx $nbins bin`       |
 | concat   | 2           | -1         | concatenate two top vectors                                                                                           |
 | cos      | 1           | 0          | cosine (angles in radians)                                                                                            |
 | div      | 2           | -1         | division (same-length vectors or vector by scalar or scalar by vector)                                                |
